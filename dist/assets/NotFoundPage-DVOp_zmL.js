@@ -1,0 +1,1 @@
+import{j as s,L as n}from"./index-j3Q_Qqdm.js";function t(){return s.jsxs("div",{className:"shell-v2 empty-v2 notfound-v2",children:[s.jsx("span",{children:"404"}),s.jsxs("h1",{children:["Цей зріз",s.jsx("br",{}),"загубився."]}),s.jsx(n,{className:"button-v2 dark",to:"/",children:"На головну ↗"})]})}export{t as default};
