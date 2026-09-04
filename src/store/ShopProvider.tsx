@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { products } from '../data/products'
+import { useProducts } from './ProductProvider'
 
 export type CartItem = { id: string; qty: number }
 export type Customer = {
@@ -12,13 +12,15 @@ export type Customer = {
   payment: 'card' | 'cod'
   note: string
 }
+export type OrderStatus = 'new' | 'seen' | 'processing' | 'shipped'
 export type Order = {
   id: string
   createdAt: string
   customer: Customer
-  items: Array<{ id: string; name: string; image: string; qty: number; price: number }>
+  items: Array<{ id: string; name: string; image: string; images?: string[]; qty: number; price: number }>
   total: number
   paymentStatus: 'paid' | 'pending'
+  status?: OrderStatus
 }
 
 type ShopContextValue = {
@@ -27,13 +29,13 @@ type ShopContextValue = {
   addToCart: (id: string, qty?: number) => void
   setQty: (id: string, qty: number) => void
   clearCart: () => void
-  cartLines: Array<{ id: string; qty: number; product: (typeof products)[number] }>
+  cartLines: Array<{ id: string; qty: number; product: ReturnType<typeof useProducts>['products'][number] }>
   cartTotal: number
   createOrder: (customer: Customer) => Promise<Order>
 }
 
-const CART_KEY = 'esther.cart.v2'
-const ORDER_KEY = 'esther.orders.v2'
+export const CART_KEY = 'esther.cart.v2'
+export const ORDER_KEY = 'esther.orders.v2'
 
 function loadCart(): CartItem[] {
   try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]') } catch { return [] }
@@ -43,6 +45,7 @@ const ShopContext = createContext<ShopContextValue | null>(null)
 
 export function ShopProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>(loadCart)
+  const { products } = useProducts()
 
   const persist = (next: CartItem[]) => {
     setCart(next)
@@ -60,7 +63,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => persist([])
 
-  const cartLines = useMemo(() => cart.map((item) => ({ ...item, product: products.find((p) => p.id === item.id)! })).filter((line) => line.product), [cart])
+  const cartLines = useMemo(() => cart.map((item) => ({ ...item, product: products.find((p) => p.id === item.id)! })).filter((line) => line.product), [cart, products])
   const cartTotal = cartLines.reduce((sum, line) => sum + line.product.price * line.qty, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
 
@@ -69,9 +72,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       id: `EST-${Date.now().toString().slice(-8)}`,
       createdAt: new Date().toISOString(),
       customer,
-      items: cartLines.map(({ product, qty }) => ({ id: product.id, name: product.name, image: product.image, qty, price: product.price })),
+      items: cartLines.map(({ product, qty }) => ({ id: product.id, name: product.name, image: product.image, images: product.images, qty, price: product.price })),
       total: cartTotal,
       paymentStatus: customer.payment === 'card' ? 'paid' : 'pending',
+      status: 'new',
     }
 
     const endpoint = import.meta.env.VITE_ORDER_ENDPOINT

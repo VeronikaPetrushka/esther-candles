@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ArrowLeft, Minus, Plus, ShoppingBag } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { products } from '../data/products'
+import { useProducts } from '../store/ProductProvider'
 import { money } from '../lib/format'
 import { gsap } from '../lib/gsap'
 import { useShop } from '../store/ShopProvider'
@@ -9,12 +9,15 @@ import ProductCard from '../components/ProductCard'
 
 export default function ProductPage() {
   const { id } = useParams()
-  const product = products.find((p) => p.id === id)
+  const { activeProducts } = useProducts()
+  const product = activeProducts.find((p) => p.id === id)
   const [active, setActive] = useState(0)
   const [qty, setQty] = useState(1)
   const { addToCart } = useShop()
   const navigate = useNavigate()
   const root = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setActive(0); setQty(1) }, [id])
 
   useLayoutEffect(() => {
     if (!root.current || matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -26,7 +29,7 @@ export default function ProductPage() {
   }, [id])
 
   if (!product) return <div className="shell-v2 empty-v2"><h1>Обʼєкт не знайдено.</h1><Link to="/catalog">До каталогу ↗</Link></div>
-  const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
+  const related = activeProducts.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 3)
 
   const choose = (index: number) => {
     gsap.to('.product-detail-media-v2 img', { opacity: 0, scale: 1.025, duration: .18, onComplete: () => {
@@ -39,8 +42,8 @@ export default function ProductPage() {
     <Link to="/catalog" className="back-v2"><ArrowLeft/> назад до каталогу</Link>
     <section className="product-detail-v2">
       <div className="product-gallery-v2">
-        <figure className="product-detail-media-v2"><img src={product.images[active]} alt={product.name}/><span>{String(active + 1).padStart(2, '0')} / {String(product.images.length).padStart(2, '0')}</span></figure>
-        <div className="product-thumbs-v2">{product.images.map((image, index) => <button type="button" className={active === index ? 'active' : ''} onClick={() => choose(index)} key={image}><img src={image} alt=""/></button>)}</div>
+        <figure className="product-detail-media-v2"><img src={(product.images?.length ? product.images : [product.image])[active]} alt={product.name}/><span>{String(active + 1).padStart(2, '0')} / {String((product.images?.length ? product.images : [product.image]).length).padStart(2, '0')}</span></figure>
+        <div className="product-thumbs-v2">{(product.images?.length ? product.images : [product.image]).map((image, index) => <button type="button" className={active === index ? 'active' : ''} onClick={() => choose(index)} key={image}><img src={image} alt=""/></button>)}</div>
       </div>
       <div className="product-detail-copy-v2">
         <span className="micro-v2">{product.category} / {product.tag || 'ESTHER'}</span>

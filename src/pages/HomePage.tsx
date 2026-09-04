@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUpRight, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { gsap, ScrollTrigger } from '../lib/gsap'
-import { products } from '../data/products'
+import { useProducts } from '../store/ProductProvider'
 import ProductCard from '../components/ProductCard'
 import WorkshopBookingModal from '../components/WorkshopBookingModal'
 import { useShop } from '../store/ShopProvider'
@@ -13,6 +13,7 @@ export default function HomePage() {
   const [bookingWorkshop, setBookingWorkshop] = useState<Workshop | null>(null)
   const [previewWorkshop, setPreviewWorkshop] = useState<Workshop | null>(null)
   const { addToCart } = useShop()
+  const { activeProducts } = useProducts()
   const { publishedWorkshops, bookings } = useWorkshops()
   const upcomingWorkshops = publishedWorkshops.filter((item) => item.date >= new Date().toISOString().slice(0,10))
   const calendarWorkshop = upcomingWorkshops[0] || publishedWorkshops[0] || null
@@ -63,24 +64,41 @@ export default function HomePage() {
       const selectedCards = root.current?.querySelectorAll<HTMLElement>('.selected-track-v2 .product-card-v2')
 
       // Reveal the horizontal cards BEFORE the section becomes pinned.
-      // Using the generic vertical [data-reveal] trigger here can leave the cards
-      // invisible for the whole pinned portion because their vertical position stops moving.
+      // On mobile we animate opacity only: transforming the card boxes themselves
+      // interferes with the native horizontal scroll geometry on iOS/Chrome.
       if (pin && selectedCards?.length) {
-        gsap.fromTo(selectedCards,
-          { y: 34, autoAlpha: 0 },
-          {
-            y: 0,
-            autoAlpha: 1,
-            duration: .72,
-            stagger: .065,
-            ease: 'power3.out',
-            scrollTrigger: {
-              trigger: pin,
-              start: 'top 78%',
-              toggleActions: 'play none none reverse',
-            },
-          }
-        )
+        if (innerWidth > 860) {
+          gsap.fromTo(selectedCards,
+            { y: 34, autoAlpha: 0 },
+            {
+              y: 0,
+              autoAlpha: 1,
+              duration: .72,
+              stagger: .065,
+              ease: 'power3.out',
+              scrollTrigger: {
+                trigger: pin,
+                start: 'top 78%',
+                toggleActions: 'play none none reverse',
+              },
+            }
+          )
+        } else {
+          gsap.fromTo(selectedCards,
+            { autoAlpha: 0 },
+            {
+              autoAlpha: 1,
+              duration: .7,
+              stagger: .055,
+              ease: 'power2.out',
+              scrollTrigger: {
+                trigger: pin,
+                start: 'top 88%',
+                toggleActions: 'play none none reverse',
+              },
+            }
+          )
+        }
       }
 
       if (track && pin && innerWidth > 860) {
@@ -102,6 +120,26 @@ export default function HomePage() {
             invalidateOnRefresh: true,
           },
         })
+      } else if (track && pin) {
+        // Mobile: NEVER translate/rotate the native horizontal scroll container or its cards.
+        // Keep the same GSAP depth language on the media inside the cards instead.
+        gsap.set(track, { x: 0, clearProps: 'transform' })
+        const mobileImages = track.querySelectorAll<HTMLElement>('.product-image-shell-v2')
+        if (mobileImages.length) {
+          gsap.fromTo(mobileImages,
+            { scale: 1.025 },
+            {
+              scale: 1,
+              ease: 'none',
+              scrollTrigger: {
+                trigger: pin,
+                start: 'top 92%',
+                end: 'bottom 18%',
+                scrub: .85,
+              },
+            }
+          )
+        }
       }
 
       // Reversible reveals: they reset after scrolling back above the section,
@@ -196,15 +234,25 @@ export default function HomePage() {
           gsap.to(arrow, { rotate: 0, scale: 1, duration: .38, ease: 'power3.out' })
           gsap.to(chip, { y: 8, autoAlpha: 0, duration: .25 })
         }
+        let touchTimer = 0
+        const touchActivate = () => {
+          if (innerWidth > 860) return
+          activate()
+          window.clearTimeout(touchTimer)
+          touchTimer = window.setTimeout(deactivate, 1100)
+        }
         row.addEventListener('mouseenter', activate)
         row.addEventListener('mouseleave', deactivate)
         row.addEventListener('focusin', activate)
         row.addEventListener('focusout', deactivate)
+        row.addEventListener('pointerdown', touchActivate)
         interactionCleanups.push(() => {
+          window.clearTimeout(touchTimer)
           row.removeEventListener('mouseenter', activate)
           row.removeEventListener('mouseleave', deactivate)
           row.removeEventListener('focusin', activate)
           row.removeEventListener('focusout', deactivate)
+          row.removeEventListener('pointerdown', touchActivate)
         })
       })
 
@@ -234,7 +282,7 @@ export default function HomePage() {
           <p>Свічки зі справжнього дерева. Кожен зріз має неповторний відбиток, характер і запах.</p>
           <div className="hero-actions-v2">
             <Link className="button-v2 light" data-magnetic to="/catalog">Дивитися каталог <ArrowUpRight size={17}/></Link>
-            <button className="round-buy-v2" data-magnetic type="button" onClick={() => addToCart(products[0].id)} aria-label="Додати вибрану свічку у кошик"><ShoppingBag/></button>
+            <button className="round-buy-v2" data-magnetic type="button" onClick={() => activeProducts[0] && addToCart(activeProducts[0].id)} aria-label="Додати вибрану свічку у кошик"><ShoppingBag/></button>
           </div>
         </div>
 
@@ -263,7 +311,7 @@ export default function HomePage() {
 
       <div className="selected-stage-v2">
         <div className="selected-track-v2">
-          {products.map((product, index) => <ProductCard key={product.id} product={product} index={index} reveal={false} />)}
+          {activeProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} reveal={false} />)}
           <Link to="/catalog" className="archive-card-v2" data-cursor="ALL"><span>ALL OBJECTS</span><h3>Обрати<br/>свій відбиток.</h3><b>Каталог ↗</b></Link>
         </div>
       </div>

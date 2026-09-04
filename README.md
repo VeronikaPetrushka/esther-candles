@@ -71,3 +71,19 @@ Demo admin: `/admin`
 
 Workshop and registration data currently persist in browser `localStorage` (`esther.workshops.v1` and `esther.workshopBookings.v1`). For production, replace this storage layer with Supabase or another backend so all devices share the same calendar and bookings.
 # esther-candles
+
+## Admin catalog / mobile update
+
+The `/admin` area now includes Products, Categories, Workshops, Workshop bookings and Shop orders on desktop and mobile.
+
+Demo login:
+- login: `admin`
+- password: `esther2026`
+
+Product CMS supports add/edit/delete, product ordering, active/hidden state, category assignment and up to 8 uploaded images per item. The first image is the catalog cover; images can be reordered or promoted to cover. The storefront catalog, homepage product archive, cart and product detail gallery read from the same locally persisted product data.
+
+Order statuses: New / Seen / In process / Shipped.
+
+This demo persists products, categories, orders, workshops and registrations in browser storage. Uploaded images are resized/compressed before being stored. For production, replace browser storage with Supabase/S3/Cloudinary or another backend/storage layer.
+
+GSAP scroll/reveal animations remain enabled on mobile. The horizontal archive keeps native touch swiping on small screens while GSAP adds entrance, tilt and scroll-depth motion; process rows also animate on touch.
